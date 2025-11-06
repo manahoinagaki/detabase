@@ -6,8 +6,8 @@ import numpy as np  # 数値計算に使用 (重複を削除)
 import os # ファイル操作に使用 (ここに追加)
 
 # --- 1. データベース設定関数 ---
-def setup_database():
-    # SQLiteデータベースを作成し、ダミーデータを挿入する。
+def setup_database():# SQLiteデータベースを作成し、ダミーデータを挿入する。
+    
     db_name = 'sales_data.db' #作成するSQLiteファイル名の定義
     
     if os.path.exists(db_name): #osモジュールを使って、指定したファイル名が既に存在するかのチェック。
@@ -36,16 +36,18 @@ def setup_database():
     conn.commit() #挿入したデータをデータベースファイルに永続的に保存（コミット）します。
     conn.close() #データベース接続を閉じます。
     
-    return db_name
+    return db_name #作成したデータベースファイル名を返す
 
 # --- 2. データ取得関数 ---
-@st.cache_data
-def get_data(db_file):
+@st.cache_data # Streamlitのキャッシュデコレーターを使用して、データ取得を効率化
+def get_data(db_file): #データベースファイル名を引数に取る
     """データベースからデータを取得し、Pandas DataFrameとして返す"""
-    conn = sqlite3.connect(db_file)
-    df = pd.read_sql_query("SELECT * FROM monthly_sales", conn)
-    conn.close()
-    return df
+    conn = sqlite3.connect(db_file) #SQLiteデータベースに接続
+    df = pd.read_sql_query("SELECT * FROM monthly_sales", conn) 
+    #SQLクエリを実行し、結果をPandasデータフレームに格納(全データ取得)
+    conn.close() #接続を閉じる
+    return df #データフレームを返す
+# 推奨: グラフ化に必要な列だけを取得したり、特定の条件で絞り込んだりするようにSQLクエリを変更できます（例: "SELECT month, revenue FROM monthly_sales WHERE revenue > 10000"）。
 
 # --- 3. アプリのメインロジック ---
 def main():
