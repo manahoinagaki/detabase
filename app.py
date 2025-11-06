@@ -42,20 +42,32 @@ def setup_database():# SQLiteデータベースを作成し、ダミーデータ
 # --- 2. データ取得関数 ---
 @st.cache_data # Streamlitのキャッシュデコレーターを使用して、データ取得を効率化
 def get_data(db_file): #データベースファイル名を引数に取る
-    """データベースからデータを取得し、Pandas DataFrameとして返す"""
+    """Secretsから認証情報を取得し、データベースに接続してデータを返す"""
+    
+    # Secretsから接続情報を読み込む
+    try:
+        db_config = st.secrets["database"]
+    except AttributeError:
+        st.error("Secretsファイルが見つからないか、認証情報が不足しています。")
+        return pd.DataFrame()
     
     # 接続オブジェクトを初期化
     conn = None
     
     try:
-        conn = sqlite3.connect(db_file)  #SQLiteデータベースに接続
-        df = pd.read_sql_query("SELECT * FROM monthly_sales", conn) 
-        #SQLクエリを実行し、結果をPandasデータフレームに格納(全データ取得)
-
-
-    except sqlite3.OperationalError as e:
+        # 例: PostgreSQLに接続し、Pandasでデータを取得する（psycopg2が必要）
+        # ※ PostgreSQL以外のDBを使う場合は、この接続部分を変更してください
+        import psycopg2 
+        conn = psycopg2.connect(**db_config)
+        
+        # 実際に必要なデータを取得するクエリ
+        sql_query = "SELECT month, revenue, products_sold FROM monthly_sales"
+        df = pd.read_sql_query(sql_query, conn)
+                
+    except Exception as e:
         # データベース接続やクエリのエラーを捕捉
-        st.error(f"データベースの操作エラーが発生しました: {e}")
+        st.error(f"データベース接続またはクエリ実行エラーが発生しました: {e}")
+        st.info("secrets.toml の設定（host, user, passwordなど）を確認してください。")
         return pd.DataFrame() # 空のDataFrameを返す
     
     finally:
@@ -72,9 +84,9 @@ def main():
     st.title("SQLデータ可視化アプリ (Streamlit)") # アプリのタイトル表示
     
     # データベースのセットアップとデータ取得
-    DB_FILE = setup_database()  #DB初期化
-    df = get_data(DB_FILE)  #データ取得
-    
+    DB_FILE = setup_database()  # <-- setup_databaseの結果を保持
+    df = get_data(DB_FILE)      # <-- DB_FILE を引数として渡す
+       
     # エラーハンドリング: データ取得に失敗した場合
     if df.empty:
         return
