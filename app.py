@@ -43,11 +43,28 @@ def setup_database():# SQLiteデータベースを作成し、ダミーデータ
 @st.cache_data # Streamlitのキャッシュデコレーターを使用して、データ取得を効率化
 def get_data(db_file): #データベースファイル名を引数に取る
     """データベースからデータを取得し、Pandas DataFrameとして返す"""
-    conn = sqlite3.connect(db_file) #SQLiteデータベースに接続
-    df = pd.read_sql_query("SELECT * FROM monthly_sales", conn) 
-    #SQLクエリを実行し、結果をPandasデータフレームに格納(全データ取得)
-    conn.close() #接続を閉じる
-    return df #データフレームを返す
+    
+    # 接続オブジェクトを初期化
+    conn = None
+    
+    try:
+        conn = sqlite3.connect(db_file)  #SQLiteデータベースに接続
+        df = pd.read_sql_query("SELECT * FROM monthly_sales", conn) 
+        #SQLクエリを実行し、結果をPandasデータフレームに格納(全データ取得)
+
+
+    except sqlite3.OperationalError as e:
+        # データベース接続やクエリのエラーを捕捉
+        st.error(f"データベースの操作エラーが発生しました: {e}")
+        return pd.DataFrame() # 空のDataFrameを返す
+    
+    finally:
+        # --- 終了処理ブロック (try/except の結果に関わらず実行) ---
+        # 接続が確立されていた場合のみ、接続を閉じる
+        if conn:
+            conn.close()
+            
+            return df #データフレームを返す
  # 推奨: グラフ化に必要な列だけを取得したり、特定の条件で絞り込んだりするようにSQLクエリを変更できます（例: "SELECT month, revenue FROM monthly_sales WHERE revenue > 10000"）。
 
 # --- 3. アプリのメインロジック ---
@@ -57,6 +74,10 @@ def main():
     # データベースのセットアップとデータ取得
     DB_FILE = setup_database()  #DB初期化
     df = get_data(DB_FILE)  #データ取得
+    
+    # エラーハンドリング: データ取得に失敗した場合
+    if df.empty:
+        return
     
     # --- フィルタリング機能のために、すべての月のリストを取得 ---
     all_months = df['month'].unique().tolist() #フィルタ選択肢準備 
@@ -85,6 +106,13 @@ def main():
     else:
         st.warning("表示する月を選択してください。")
         return # 月が選択されていない場合は描画を中止
+    
+    # --- 数値列の抽出（ヒストグラム/円グラフの選択肢を制限するため） ---
+    # 数値型の列（revenue, products_sold）だけを抽出します
+    numeric_cols = df_filtered.select_dtypes(include=np.number).columns.tolist()
+    
+    # すべての列の選択肢
+    column_options = df_filtered.columns.tolist()
     
      # st.title(...)	アプリタイトル表示	メイン画面の一番上にタイトルを表示します。
      # DB_FILE = setup_database()	DB初期化	テスト用のSQLiteファイルを作成/再作成し、そのファイル名を取得します。
@@ -133,10 +161,12 @@ def main():
         )
     elif chart_type in ["ヒストグラム", "円グラフ"]:
         max_select = 1
-        default_select = ['revenue'] if chart_type == "ヒストグラム" else ['revenue']
-        y_columns = st.sidebar.multiselect(
+        default_select = ['revenue'] if 'revenue' in numeric_cols else numeric_cols[:1]
+                          
+         # 選択肢を数値列のみに制限します
+        y_columns = st.sidebar.multiselect( 
             f"3. Y軸 (値) のデータを選択 (1つのみ)",
-            column_options,
+            numeric_cols, # <-- 数値列のみを使用
             default=default_select,
             max_selections=max_select
         )
@@ -157,6 +187,18 @@ def main():
     if not y_columns:
         st.warning("Y軸にデータを選択してください。")
         return
+    
+    # --- ビン数スライダーの追加 (ヒストグラムの場合のみ) ---
+    bins = 10
+    if chart_type == "ヒストグラム (Hist)":
+        # データのユニークな値の数を上限とします
+        max_bins = len(df_filtered[y_columns[0]].unique())
+        bins = st.sidebar.slider(
+            "4. ビン数 (Bins) を選択",
+            min_value=1,
+            max_value=max_bins if max_bins >= 1 else 1,
+            value=min(10, max_bins if max_bins >= 1 else 1)
+        )
 
     st.subheader(f"{chart_type} の結果")
 
@@ -186,11 +228,11 @@ def main():
         # 複合グラフ (棒 + 折れ線)
         ax2 = ax1.twinx() 
         
-        ax1.bar(df[x_column], df[y_columns[0]], color='skyblue', label=y_columns[0], alpha=0.6)
+        ax1.bar(df_filtered[x_column], df_filtered[y_columns[0]], color='skyblue', label=y_columns[0], alpha=0.6)
         ax1.set_ylabel(y_columns[0], color='skyblue')
         ax1.tick_params(axis='y', labelcolor='skyblue')
         
-        ax2.plot(df[x_column], df[y_columns[1]], marker='o', color='red', label=y_columns[1])
+        ax2.plot(df_filtered[x_column], df_filtered[y_columns[1]], marker='o', color='red', label=y_columns[1])
         ax2.set_ylabel(y_columns[1], color='red')
         ax2.tick_params(axis='y', labelcolor='red')
 
@@ -211,7 +253,8 @@ def main():
 
     elif chart_type == "ヒストグラム (Hist)":
         # ヒストグラム
-        ax1.hist(df[y_columns[0]], bins=3, color='orange', edgecolor='black')
+        # 選択された bins 変数を使用
+        ax1.hist(df_filtered[y_columns[0]], bins=bins, color='orange', edgecolor='black') 
         ax1.set_title(f"{y_columns[0]} の分布 (ヒストグラム)")
         ax1.set_xlabel(y_columns[0])
         ax1.set_ylabel("度数 (Frequency)")
@@ -222,8 +265,8 @@ def main():
 
     elif chart_type == "円グラフ":
         # 円グラフ
-        labels = df[x_column]
-        sizes = df[y_columns[0]]
+        labels = df_filtered[x_column]
+        sizes = df_filtered[y_columns[0]]
         explode = tuple([0.1] + [0] * (len(sizes) - 1))
 
         ax1.pie(
@@ -246,12 +289,12 @@ def main():
         # 単純な単軸グラフ (Line, Scatter, Bar)
         for col in y_columns:
             if chart_type == "折れ線グラフ":
-                ax1.plot(df[x_column], df[col], marker='o', label=col)
+                ax1.plot(df_filtered[x_column], df_filtered[col], marker='o', label=col)
             elif chart_type == "散布図":
-                ax1.scatter(df[x_column], df[col], label=f'{col} vs {x_column}')
+                ax1.scatter(df_filtered[x_column], df_filtered[col], label=f'{col} vs {x_column}')
             elif chart_type == "棒グラフ":
-                 ax1.bar(df[x_column], df[col], label=col, color='skyblue')
-                 
+                 ax1.bar(df_filtered[x_column], df_filtered[col], label=col, color='skyblue')
+
         ax1.set_title(f"{chart_type} of {', '.join(y_columns)} by {x_column}")
         ax1.set_xlabel(x_column)
         ax1.set_ylabel(", ".join(y_columns))
