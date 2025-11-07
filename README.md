@@ -7,3 +7,8 @@
 
  source .venv/bin/activate
  streamlit run app.py
+
+ ステップ 1: PostgreSQLサーバーの起動あなたがPostgreSQLをどのように実行しているかに応じて、適切なコマンドを実行してください。
+ 実行環境  起動コマンドの例
+ Dockerコンテナ  docker start <コンテナ名またはID>
+ macOS (Homebrew)  brew services start postgresqlLinux (systemd)sudo systemctl start postgresqlWindowsサービス  Windowsサービスマネージャーから起動する、またはコマンドプロンプトで net start postgresql-x6x (バージョンによる)
