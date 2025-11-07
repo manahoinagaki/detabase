@@ -4,6 +4,7 @@ import pandas as pd # データ操作に使用
 import sqlite3  # SQLiteデータベース操作に使用
 import numpy as np  # 数値計算に使用 (重複を削除)
 import os # ファイル操作に使用 (ここに追加)
+import psycopg2 # PostgreSQLデータベース接続に使用 (必要に応じて他のDBライブラリに変更可能)
 
 # --- 1. データベース設定関数 ---
 def setup_database():# SQLiteデータベースを作成し、ダミーデータを挿入する。
@@ -41,42 +42,56 @@ def setup_database():# SQLiteデータベースを作成し、ダミーデータ
 
 # --- 2. データ取得関数 ---
 @st.cache_data # Streamlitのキャッシュデコレーターを使用して、データ取得を効率化
-def get_data(db_file): #データベースファイル名を引数に取る
+def get_data(): #データベースファイル名を引数に取る
     """Secretsから認証情報を取得し、データベースに接続してデータを返す"""
     
-    # Secretsから接続情報を読み込む
-    try:
-        db_config = st.secrets["database"]
-    except AttributeError:
-        st.error("Secretsファイルが見つからないか、認証情報が不足しています。")
-        return pd.DataFrame()
-    
-    # 接続オブジェクトを初期化
-    conn = None
-    
-    try:
-        # 例: PostgreSQLに接続し、Pandasでデータを取得する（psycopg2が必要）
-        # ※ PostgreSQL以外のDBを使う場合は、この接続部分を変更してください
-        import psycopg2 
-        conn = psycopg2.connect(**db_config)
+    # 接続オブジェクトとDataFrameを初期化
+    conn = None             # PostgreSQL接続オブジェクト
+    conn_sqlite = None      # SQLite接続オブジェクト
+    df = pd.DataFrame()     # 戻り値のDataFrameを初期化
         
-        # 実際に必要なデータを取得するクエリ
-        sql_query = "SELECT month, revenue, products_sold FROM monthly_sales"
-        df = pd.read_sql_query(sql_query, conn)
-                
-    except Exception as e:
-        # データベース接続やクエリのエラーを捕捉
-        st.error(f"データベース接続またはクエリ実行エラーが発生しました: {e}")
-        st.info("secrets.toml の設定（host, user, passwordなど）を確認してください。")
+    # 1. Secretsから認証情報を取得
+    if "database" not in st.secrets:
+        st.error("Secretsファイル(.streamlit/secrets.toml)が見つからないか、[database]セクションが不足しています。")
         return pd.DataFrame() # 空のDataFrameを返す
     
-    finally:
-        # --- 終了処理ブロック (try/except の結果に関わらず実行) ---
-        # 接続が確立されていた場合のみ、接続を閉じる
-        if conn:
-            conn.close()
+    db_config = st.secrets["database"] # データベース接続情報を取得
+    
+    try:
+        # 2. データベースに接続
+        # psycopg2のimportがファイルの先頭で行われている前提
+        conn = psycopg2.connect(**db_config) # PostgreSQLに接続
+        
+        # 3. SQLクエリの実行
+        sql_query = "SELECT month, revenue, products_sold FROM monthly_sales"
+        df = pd.read_sql_query(sql_query, conn) # SQLクエリを実行し、結果をDataFrameに格納
+                
+    except Exception as e:
+        # 接続失敗やクエリ実行エラーを捕捉
+        st.warning(f"PostgreSQL接続に失敗しました。エラー: {e}")
+        st.info("Secrets.tomlの設定およびPostgreSQLサーバーの稼働状態を確認してください。SQLiteテストデータにフォールバックします。")
+                        
+        # --- フォールバック: SQLite接続 ---
+        conn_sqlite = None
+        try:
+            DB_FILE = setup_database() # テスト用DBを生成
+            conn_sqlite = sqlite3.connect(DB_FILE)
+            sql_query = "SELECT month, revenue, products_sold FROM monthly_sales"
+            # df に SQLiteの結果を上書き格納 (df は try の外で初期化済み)
+            df = pd.read_sql_query(sql_query, conn_sqlite)
+        except Exception as sqlite_e:
+            st.error(f"SQLiteフォールバック接続も失敗しました: {sqlite_e}")
             
-            return df #データフレームを返す
+    finally:
+        # 4. 接続を確実に閉じる (try/except の結果に関わらず実行)
+        if conn:
+            conn.close() # PostgreSQL接続を閉じる
+        if conn_sqlite:
+            conn_sqlite.close() # SQLite接続を閉じる
+            
+    # 5. 結果のDataFrameを一度だけ返す
+    return df
+
  # 推奨: グラフ化に必要な列だけを取得したり、特定の条件で絞り込んだりするようにSQLクエリを変更できます（例: "SELECT month, revenue FROM monthly_sales WHERE revenue > 10000"）。
 
 # --- 3. アプリのメインロジック ---
@@ -84,8 +99,7 @@ def main():
     st.title("SQLデータ可視化アプリ (Streamlit)") # アプリのタイトル表示
     
     # データベースのセットアップとデータ取得
-    DB_FILE = setup_database()  # <-- setup_databaseの結果を保持
-    df = get_data(DB_FILE)      # <-- DB_FILE を引数として渡す
+    df = get_data()      # データ取得
        
     # エラーハンドリング: データ取得に失敗した場合
     if df.empty:
@@ -202,7 +216,7 @@ def main():
     
     # --- ビン数スライダーの追加 (ヒストグラムの場合のみ) ---
     bins = 10
-    if chart_type == "ヒストグラム (Hist)":
+    if chart_type == "ヒストグラム":
         # データのユニークな値の数を上限とします
         max_bins = len(df_filtered[y_columns[0]].unique())
         bins = st.sidebar.slider(
@@ -263,7 +277,7 @@ def main():
          # 2番目のデータ (y_columns[1]) を ax2 に折れ線グラフ (ax2.plot) で描画し、軸を赤色で装飾します。
          # 凡例 (ax1.legend) は、両方の軸の情報を集めて統合し、グラフの判読性を高めています。
 
-    elif chart_type == "ヒストグラム (Hist)":
+    elif chart_type == "ヒストグラム":
         # ヒストグラム
         # 選択された bins 変数を使用
         ax1.hist(df_filtered[y_columns[0]], bins=bins, color='orange', edgecolor='black') 
