@@ -4,7 +4,6 @@ import pandas as pd # データ操作に使用
 import sqlite3  # SQLiteデータベース操作に使用
 import numpy as np  # 数値計算に使用 (重複を削除)
 import os # ファイル操作に使用 (ここに追加)
-import psycopg2 # PostgreSQLデータベース接続に使用 (必要に応じて他のDBライブラリに変更可能)
 
 # --- 1. データベース設定関数 ---
 def setup_database():# SQLiteデータベースを作成し、ダミーデータを挿入する。
@@ -58,10 +57,6 @@ def get_data(): #データベースファイル名を引数に取る
     db_config = st.secrets["database"] # データベース接続情報を取得
     
     try:
-        # 2. データベースに接続
-        # psycopg2のimportがファイルの先頭で行われている前提
-        conn = psycopg2.connect(**db_config) # PostgreSQLに接続
-        
         # 3. SQLクエリの実行
         sql_query = "SELECT month, revenue, products_sold FROM monthly_sales"
         df = pd.read_sql_query(sql_query, conn) # SQLクエリを実行し、結果をDataFrameに格納
