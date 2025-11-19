@@ -40,7 +40,7 @@ def setup_database():# SQLiteデータベースを作成し、ダミーデータ
     return db_name #作成したデータベースファイル名を返す
 
 # --- 2. データ取得関数 ---
-@st.cache_data # Streamlitのキャッシュデコレーターを使用して、データ取得を効率化
+@st.cache(allow_output_mutation=True)
 def get_data(): #データベースファイル名を引数に取る
     """Secretsから認証情報を取得し、データベースに接続してデータを返す"""
     
