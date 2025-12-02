@@ -4,6 +4,10 @@
   "description": "野中先生からの課題\r  ./myenv/Scripts/python.exe -m streamlit run app/app.py",
   "main": "index.js",
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,9 +21,11 @@
   },
   "homepage": "https://github.com/manahoinagaki/detabase#readme",
   "dependencies": {
+    "leaflet": "^1.9.4",
     "next": "^16.0.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-leaflet": "^5.0.0",
     "recharts": "^3.5.1",
     "swr": "^2.3.7"
   },

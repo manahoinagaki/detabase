@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/T24091/app/detabase/frontend/app/globals.css"],"sourcesContent":["\r\n@tailwind base;\r\n@tailwind components;\r\n@tailwind utilities;\r\n\r\n:root { color-scheme: dark; }\r\nhtml, body, #__next { height: 100%; background: #0b0f14; }\r\n\r\n.recharts-default-tooltip {\r\n  background: #101317 !important;\r\n  border: 1px solid #074e66 !important;\r\n  border-radius: 12px !important;\r\n  color: white;\r\n}\r\n"],"names":[],"mappings":"AACA;;AACA;;AACA;;AAEA;;;;;;AACA;;;;;AAEA"}}]
+}

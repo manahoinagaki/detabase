@@ -1,0 +1,26 @@
+/* [project]/frontend/app/globals.css [app-client] (css) */
+@tailwind base;
+
+@tailwind components;
+
+@tailwind utilities;
+
+:root {
+  --lightningcss-light: ;
+  --lightningcss-dark: initial;
+  color-scheme: dark;
+}
+
+html, body, #__next {
+  background: #0b0f14;
+  height: 100%;
+}
+
+.recharts-default-tooltip {
+  color: #fff;
+  background: #101317 !important;
+  border: 1px solid #074e66 !important;
+  border-radius: 12px !important;
+}
+
+/*# sourceMappingURL=frontend_app_globals_css_bad6b30c._.single.css.map*/

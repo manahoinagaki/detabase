@@ -1,0 +1,10 @@
+{
+  "[project]/frontend/components/MapCard.tsx [app-client] (ecmascript, next/dynamic entry)": {
+    "id": "[project]/frontend/components/MapCard.tsx [app-client] (ecmascript, next/dynamic entry)",
+    "files": [
+      "static/chunks/9e883_349e277d._.js",
+      "static/chunks/frontend_components_MapCard_tsx_2c8bfefd._.js",
+      "static/chunks/frontend_components_MapCard_tsx_8f085861._.js"
+    ]
+  }
+}
