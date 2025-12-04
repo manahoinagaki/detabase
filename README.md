@@ -2,8 +2,9 @@
 野中先生からの課題
  ./myenv/Scripts/python.exe -m streamlit run app/app.py
 
- uvicorn app.main:app --reload
+ cd Alternative_data_backend
+ uvicorn backend.main:app --reload
  <!-- http://127.0.0.1:8000 -->
 
- cd frontend
+ cd Alternative_data_frontend
  npm run dev
